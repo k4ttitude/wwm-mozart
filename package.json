@@ -1,0 +1,21 @@
+{
+	"name": "midi",
+	"version": "1.0.0",
+	"description": "",
+	"main": "play.mjs",
+	"scripts": {
+		"play": "node play.mjs"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"packageManager": "pnpm@10.18.2",
+	"dependencies": {
+		"@jitsi/robotjs": "^0.6.18",
+		"midi-parser-js": "^4.0.4"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.7",
+		"@types/node": "^24.10.1"
+	}
+}
