@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { midiToKeys } from "./midi.mjs";
+import { sleep } from "./utils.mjs";
 
 const main = async () => {
 	const filename = process.argv[2];
@@ -25,40 +26,34 @@ const main = async () => {
 				);
 				process.exit(1);
 			}
-		} else if (arg.startsWith("--channel=")) {
-			const channels = arg
-				.split("=")[1]
-				.split(",")
-				.map((c) => parseInt(c.trim(), 10));
-			if (channels.some((c) => Number.isNaN(c) || c < 0 || c > 15)) {
-				console.error("Error: Channel numbers must be between 0 and 15");
-				process.exit(1);
-			}
-			channelFilter = channels;
-		} else if (/^\d+$/.test(arg)) {
-			trackIndex = parseInt(arg, 10);
 		}
 	});
 
-	console.log({ dryRun, trackIndex, showTiming, mergeMode, channelFilter });
+	console.log({ dryRun, showTiming, mergeMode });
 
 	try {
 		const tracks = await midiToKeys(midiFile, {
-			trackIndex,
 			showTiming,
 			mergeMode,
-			channelFilter,
 		});
 
-		tracks.forEach((track) => {
+		tracks.forEach((track, index) => {
+			console.log();
+			console.log("=".repeat(60));
+			console.log(`Track ${index}`);
+			console.log("=".repeat(60));
 			console.log(
 				track.playable
 					.map(({ modifier, key }) => (modifier ? `${modifier}-${key}` : key))
 					.join(" "),
 			);
+		});
 
-			if (dryRun) return;
+		if (dryRun) return;
 
+		console.log("Playing in 3 seconds");
+		await sleep(3000);
+		tracks.forEach((track) => {
 			const child = spawn(
 				"node",
 				["play-track.mjs", JSON.stringify(track.playable)],

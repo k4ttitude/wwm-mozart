@@ -1,7 +1,5 @@
 import robot from "@jitsi/robotjs";
-
-const sleep = (duration) =>
-	new Promise((resolve) => setTimeout(resolve, duration));
+import { sleep } from "./utils.mjs";
 
 const track = JSON.parse(process.argv[2]);
 
