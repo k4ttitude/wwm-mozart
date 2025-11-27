@@ -3,11 +3,15 @@
 
 ## Usage
 ```sh
-pnpm play <midi_file_path>
+pnpm play [options] <midi_file_path> [track_index]
 ```
 
-### Options
-`-n` dry-run: check for outliner notes
+### Arguments
+- `<midi_file_path>` - Path to the MIDI file to play (required)
+- `[track_index]` - Index of specific track to play (optional)
 
-## TODO:
-- Play multi-track songs
+### Options
+- `-n, --dry-run` - Check for outlier notes without playing
+- `--timing` - Log notes timing information
+- `--merge <mode>` - Merge strategy: `all`, `dedupe`, or `melody`. Default: `dedupe`.
+- `--channel <n>` - MIDI channel to use (0-15)
