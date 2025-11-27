@@ -179,7 +179,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 	console.log("KEY SEQUENCE:");
 	console.log("=".repeat(60));
 
-	const payable = [];
+	const playable = [];
 	const outOfRange = [];
 
 	processedNotes.forEach((processedNote) => {
@@ -190,7 +190,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		if (KEY_MAP[note]) {
 			const key = KEY_MAP[note];
 			processedNote.key = key;
-			payable.push({ noteName, note });
+			playable.push({ noteName, note });
 			if (showTiming) {
 				console.log(
 					`Time: ${String(time).padStart(6)} | DeltaTime: ${String(deltaTime).padStart(6)} | Note: ${noteName.padEnd(4)} (MIDI ${String(note).padStart(3)}) | Ch: ${channel} | Track: ${trackIndex} -> Key: ${key}`,
@@ -206,7 +206,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 	console.log(processedNotes.map((note) => note.key).join(" "));
 	console.log();
 	console.log(
-		`Total notes: ${processedNotes.length}, Playable: ${payable.length}, Out of range: ${outOfRange.length}`,
+		`Total notes: ${processedNotes.length}, Playable: ${playable.length}, Out of range: ${outOfRange.length}`,
 	);
 
 	if (outOfRange.length > 0) {
@@ -220,5 +220,6 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		});
 	}
 
-	return processedNotes;
+	const playableNotes = processedNotes.filter(note => note.key)
+	return playableNotes;
 };

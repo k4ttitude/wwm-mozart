@@ -49,7 +49,7 @@ const main = async () => {
 	console.log({ dryRun, trackIndex, showTiming, mergeMode, channelFilter });
 
 	try {
-		const notes = midiToKeys(midiFile, {
+		const notes = await midiToKeys(midiFile, {
 			trackIndex,
 			showTiming,
 			mergeMode,
