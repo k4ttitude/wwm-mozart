@@ -1,9 +1,5 @@
-import robot from "@jitsi/robotjs";
+import { spawn } from "node:child_process";
 import { midiToKeys } from "./midi.mjs";
-import { getKeyPress } from "./wwm.mjs";
-
-const sleep = (duration) =>
-	new Promise((resolve) => setTimeout(resolve, duration));
 
 const main = async () => {
 	const filename = process.argv[2];
@@ -18,8 +14,6 @@ const main = async () => {
 	const dryRun = args.includes("-n");
 	const showTiming = args.includes("--timing");
 	let mergeMode = "all";
-	let trackIndex = null;
-	let channelFilter = null;
 
 	// Parse arguments
 	args.slice(1).forEach((arg) => {
@@ -49,20 +43,41 @@ const main = async () => {
 	console.log({ dryRun, trackIndex, showTiming, mergeMode, channelFilter });
 
 	try {
-		const notes = await midiToKeys(midiFile, {
+		const tracks = await midiToKeys(midiFile, {
 			trackIndex,
 			showTiming,
 			mergeMode,
 			channelFilter,
 		});
 
-		if (!dryRun) {
-			for (const note of notes) {
-				const { key, modifier } = getKeyPress(note.key);
-				await sleep(note.deltaTime);
-				modifier ? robot.keyTap(key, modifier) : robot.keyTap(key);
-			}
-		}
+		tracks.forEach((track) => {
+			console.log(
+				track.playable
+					.map(({ modifier, key }) => (modifier ? `${modifier}-${key}` : key))
+					.join(" "),
+			);
+
+			if (dryRun) return;
+
+			const child = spawn(
+				"node",
+				["play-track.mjs", JSON.stringify(track.playable)],
+				{ stdio: "inherit" },
+			);
+
+			child.on("error", (error) => {
+				console.error(
+					`Error spawning child process for track ${index}:`,
+					error,
+				);
+			});
+
+			child.on("exit", (code) => {
+				if (code !== 0) {
+					console.error(`Track ${index} process exited with code ${code}`);
+				}
+			});
+		});
 	} catch (error) {
 		if (error.code === "ENOENT") {
 			console.error(`Error: File '${midiFile}' not found!`);

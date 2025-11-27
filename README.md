@@ -14,4 +14,3 @@ pnpm play [options] <midi_file_path> [track_index]
 - `-n, --dry-run` - Check for outlier notes without playing
 - `--timing` - Log notes timing information
 - `--merge <mode>` - Merge strategy: `all`, `dedupe`, or `melody`. Default: `dedupe`.
-- `--channel <n>` - MIDI channel to use (0-15)
