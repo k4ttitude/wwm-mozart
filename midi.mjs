@@ -15,10 +15,9 @@ const getTrackName = (track) => {
 
 export const midiToKeys = async (midiFile, options = {}) => {
 	const {
-		dryRun = false,
 		trackIndex = null,
 		showTiming = false,
-		mergeMode = "all", // 'all', 'dedupe', 'melody'
+		mergeMode = "dedupe", // 'all', 'dedupe', 'melody'
 		channelFilter = null, // null or array of channel numbers to include
 	} = options;
 
@@ -167,6 +166,12 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		console.log(`Merge mode: all (processing all ${notes.length} notes)`);
 	}
 
+	let lastTime = 0;
+	processedNotes.forEach((note) => {
+		note.deltaTime = note.time - lastTime;
+		lastTime = note.time;
+	});
+
 	console.log();
 
 	// Convert to key sequence
@@ -178,7 +183,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 	const outOfRange = [];
 
 	processedNotes.forEach((processedNote) => {
-		const { time, note, channel, trackIndex } = processedNote;
+		const { time, deltaTime, note, channel, trackIndex } = processedNote;
 		const noteName = getNoteName(note);
 		processedNote.noteName = noteName;
 
@@ -188,7 +193,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 			payable.push({ noteName, note });
 			if (showTiming) {
 				console.log(
-					`Time: ${String(time).padStart(6)} | Note: ${noteName.padEnd(4)} (MIDI ${String(note).padStart(3)}) | Ch: ${channel} | Track: ${trackIndex} -> Key: ${key}`,
+					`Time: ${String(time).padStart(6)} | DeltaTime: ${String(deltaTime).padStart(6)} | Note: ${noteName.padEnd(4)} (MIDI ${String(note).padStart(3)}) | Ch: ${channel} | Track: ${trackIndex} -> Key: ${key}`,
 				);
 			}
 		} else {

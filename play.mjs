@@ -1,4 +1,9 @@
+import robot from "@jitsi/robotjs";
 import { midiToKeys } from "./midi.mjs";
+import { getKeyPress } from "./wwm.mjs";
+
+const sleep = (duration) =>
+	new Promise((resolve) => setTimeout(resolve, duration));
 
 const main = async () => {
 	const filename = process.argv[2];
@@ -44,13 +49,20 @@ const main = async () => {
 	console.log({ dryRun, trackIndex, showTiming, mergeMode, channelFilter });
 
 	try {
-		midiToKeys(midiFile, {
-			dryRun,
+		const notes = midiToKeys(midiFile, {
 			trackIndex,
 			showTiming,
 			mergeMode,
 			channelFilter,
 		});
+
+		if (!dryRun) {
+			for (const note of notes) {
+				const { key, modifier } = getKeyPress(note.key);
+				await sleep(note.deltaTime);
+				modifier ? robot.keyTap(key, modifier) : robot.keyTap(key);
+			}
+		}
 	} catch (error) {
 		if (error.code === "ENOENT") {
 			console.error(`Error: File '${midiFile}' not found!`);
