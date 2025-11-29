@@ -1,6 +1,7 @@
 import MidiParser from "midi-parser-js";
 import { readFile } from "node:fs/promises";
-import { KEY_MAP, NOTES } from "./consts.mjs";
+import { NOTES } from "./consts.mjs";
+import { noteToKeyPress } from "./wwm.mjs";
 
 const getNoteName = (midiNote) => {
 	const octave = Math.floor(midiNote / 12) - 1;
@@ -14,12 +15,7 @@ const getTrackName = (track) => {
 };
 
 export const midiToKeys = async (midiFile, options = {}) => {
-	const {
-		trackIndex = null,
-		showTiming = false,
-		mergeMode = "dedupe", // 'all', 'dedupe', 'melody'
-		channelFilter = null, // null or array of channel numbers to include
-	} = options;
+	const { trackIndex = null, showTiming = false } = options;
 
 	// Read and parse MIDI file
 	const fileData = await readFile(midiFile, "base64");
@@ -83,11 +79,6 @@ export const midiToKeys = async (midiFile, options = {}) => {
 				const velocity = event.data[1];
 				const channel = event.channel || 0;
 
-				// Apply channel filter if specified
-				if (channelFilter && !channelFilter.includes(channel)) {
-					return;
-				}
-
 				// Only process notes with velocity > 0 (velocity 0 = note off)
 				if (velocity > 0) {
 					notes.push({
@@ -113,84 +104,92 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		return;
 	}
 
-	// Apply merge mode
-	let processedNotes = notes;
+	// Step 1: Keep highest note at each time for each track
+	const trackMelodies = new Map(); // Map<trackIndex, Map<time, noteEvent>>
 
-	if (mergeMode === "dedupe") {
-		// Remove duplicate notes at the same time (keep first occurrence)
-		processedNotes = [];
-		let lastTime = -1;
-		const notesAtTime = new Set();
+	notes.forEach((noteEvent) => {
+		const trackKey = noteEvent.trackIndex;
 
-		notes.forEach((noteEvent) => {
-			if (noteEvent.time !== lastTime) {
-				notesAtTime.clear();
-				lastTime = noteEvent.time;
-			}
-
-			if (!notesAtTime.has(noteEvent.note)) {
-				notesAtTime.add(noteEvent.note);
-				processedNotes.push(noteEvent);
-			}
-		});
-
-		console.log(
-			`Merge mode: dedupe (removed ${notes.length - processedNotes.length} duplicate simultaneous notes)`,
-		);
-	} else if (mergeMode === "melody") {
-		// Keep only the highest note at each time point (melody line)
-		processedNotes = [];
-		let i = 0;
-
-		while (i < notes.length) {
-			const currentTime = notes[i].time;
-			const notesAtThisTime = [];
-
-			// Collect all notes at this time
-			while (i < notes.length && notes[i].time === currentTime) {
-				notesAtThisTime.push(notes[i]);
-				i++;
-			}
-
-			// Keep only the highest note
-			const highestNote = notesAtThisTime.reduce((max, n) =>
-				n.note > max.note ? n : max,
-			);
-			processedNotes.push(highestNote);
+		if (!trackMelodies.has(trackKey)) {
+			trackMelodies.set(trackKey, new Map());
 		}
 
-		console.log(
-			`Merge mode: melody (kept ${processedNotes.length} highest notes from ${notes.length} total)`,
-		);
-	} else {
-		console.log(`Merge mode: all (processing all ${notes.length} notes)`);
-	}
+		const trackNotes = trackMelodies.get(trackKey);
+		const existingNote = trackNotes.get(noteEvent.time);
 
-	let lastTime = 0;
+		if (!existingNote || noteEvent.note > existingNote.note) {
+			trackNotes.set(noteEvent.time, noteEvent);
+		}
+	});
+
+	// Flatten track melodies back to array
+	const trackMelodyNotes = [];
+	trackMelodies.forEach((trackNotes) => {
+		trackNotes.forEach((note) => {
+			trackMelodyNotes.push(note);
+		});
+	});
+
+	// Sort by time, then by note
+	trackMelodyNotes.sort((a, b) => {
+		if (a.time !== b.time) return a.time - b.time;
+		return a.note - b.note;
+	});
+
+	// Step 2: Remove duplicate notes across all tracks at same time
+	const processedNotes = [];
+	let lastTime = -1;
+	const notesAtTime = new Set();
+
+	trackMelodyNotes.forEach((noteEvent) => {
+		if (noteEvent.time !== lastTime) {
+			notesAtTime.clear();
+			lastTime = noteEvent.time;
+		}
+
+		if (!notesAtTime.has(noteEvent.note)) {
+			notesAtTime.add(noteEvent.note);
+			processedNotes.push(noteEvent);
+		}
+	});
+
+	console.log(`Processing: track-melody + dedupe`);
+	console.log(
+		`  Step 1 (track-melody): ${notes.length} -> ${trackMelodyNotes.length} notes`,
+	);
+	console.log(
+		`  Step 2 (dedupe): ${trackMelodyNotes.length} -> ${processedNotes.length} notes`,
+	);
+
+	// Calculate delta times
+	let prevTime = 0;
 	processedNotes.forEach((note) => {
-		note.deltaTime = note.time - lastTime;
-		lastTime = note.time;
+		note.deltaTime = note.time - prevTime;
+		prevTime = note.time;
 	});
 
 	console.log();
-
 	// Convert to key sequence
 	console.log("=".repeat(60));
 	console.log("KEY SEQUENCE:");
 	console.log("=".repeat(60));
 
-	const payable = [];
+	const playable = [];
 	const outOfRange = [];
 
 	processedNotes.forEach((processedNote) => {
 		const { time, deltaTime, note, channel, trackIndex } = processedNote;
 		const noteName = getNoteName(note);
 		processedNote.noteName = noteName;
+		const keyPress = noteToKeyPress(note);
 
-		if (KEY_MAP[note]) {
-			const key = KEY_MAP[note];
+		if (keyPress) {
+			const { key, modifier } = keyPress;
 			processedNote.key = key;
-			payable.push({ noteName, note });
+			processedNote.modifier = modifier;
+
+			playable.push({ noteName, note });
+
 			if (showTiming) {
 				console.log(
 					`Time: ${String(time).padStart(6)} | DeltaTime: ${String(deltaTime).padStart(6)} | Note: ${noteName.padEnd(4)} (MIDI ${String(note).padStart(3)}) | Ch: ${channel} | Track: ${trackIndex} -> Key: ${key}`,
@@ -203,10 +202,14 @@ export const midiToKeys = async (midiFile, options = {}) => {
 
 	console.log();
 	console.log("KEYS TO PRESS:");
-	console.log(processedNotes.map((note) => note.key).join(" "));
+	console.log(
+		processedNotes
+			.map(({ key, modifier }) => (modifier ? `${modifier.at(0)}-${key}` : key))
+			.join(" "),
+	);
 	console.log();
 	console.log(
-		`Total notes: ${processedNotes.length}, Playable: ${payable.length}, Out of range: ${outOfRange.length}`,
+		`Total notes: ${processedNotes.length}, Playable: ${playable.length}, Out of range: ${outOfRange.length}`,
 	);
 
 	if (outOfRange.length > 0) {

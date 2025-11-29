@@ -2,9 +2,9 @@
 	"name": "midi",
 	"version": "1.0.0",
 	"description": "",
-	"main": "play.mjs",
+	"main": "src/play.mjs",
 	"scripts": {
-		"play": "node play.mjs"
+		"play": "node src/play.mjs"
 	},
 	"keywords": [],
 	"author": "",
