@@ -177,7 +177,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		prevTime = processedNote.time;
 
 		// Transpose
-		processedNote.note = processedNote + transposition * 12;
+		processedNote.note = processedNote.note + transposition * 12;
 
 		const { time, note, channel, trackIndex } = processedNote;
 
