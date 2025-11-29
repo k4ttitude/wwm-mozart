@@ -25,8 +25,6 @@ const main = async () => {
 		}
 	});
 
-	console.log({ dryRun, trackIndex, showTiming });
-
 	try {
 		const notes = await midiToKeys(midiFile, {
 			trackIndex,
@@ -34,6 +32,8 @@ const main = async () => {
 		});
 
 		if (!dryRun) {
+			console.log("Playing in 3 seconds...");
+			await sleep(3000);
 			for (const note of notes) {
 				const { key, modifier, deltaTime } = note;
 				deltaTime && (await sleep(deltaTime));

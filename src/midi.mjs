@@ -117,8 +117,8 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		const trackNotes = trackMelodies.get(trackKey);
 		const existingNote = trackNotes.get(noteEvent.time);
 
-		if (!existingNote || noteEvent.note > existingNote.note) {
 			trackNotes.set(noteEvent.time, noteEvent);
+		if (!existingNote || noteEvent.note > existingNote.note) {
 		}
 	});
 
@@ -166,6 +166,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 	processedNotes.forEach((note) => {
 		note.deltaTime = note.time - prevTime;
 		prevTime = note.time;
+		note.note = note.note + 12;
 	});
 
 	console.log();
@@ -211,6 +212,14 @@ export const midiToKeys = async (midiFile, options = {}) => {
 	console.log(
 		`Total notes: ${processedNotes.length}, Playable: ${playable.length}, Out of range: ${outOfRange.length}`,
 	);
+	if (playable.length > 0) {
+		console.log(`Playable notes: `);
+		const uniquePlayable = [...new Map(playable.map(item => [item.note, item])).values()];
+		uniquePlayable.sort((a, b) => a.note - b.note);
+		const lowest = uniquePlayable[0];
+		const highest = uniquePlayable[uniquePlayable.length - 1];
+		console.log(`${lowest.noteName} (MIDI ${lowest.note}) - ${highest.noteName} (MIDI ${highest.note})`)
+	}
 
 	if (outOfRange.length > 0) {
 		console.log("\nOut of range notes (not mapped):");
