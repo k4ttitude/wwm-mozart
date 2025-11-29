@@ -15,7 +15,7 @@ const getTrackName = (track) => {
 };
 
 export const midiToKeys = async (midiFile, options = {}) => {
-	const { trackIndex = null, showTiming = false } = options;
+	const { trackIndex = null, showTiming = false, transposition = 0 } = options;
 
 	// Read and parse MIDI file
 	const fileData = await readFile(midiFile, "base64");
@@ -117,7 +117,7 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		const trackNotes = trackMelodies.get(trackKey);
 		const existingNote = trackNotes.get(noteEvent.time);
 
-			trackNotes.set(noteEvent.time, noteEvent);
+		trackNotes.set(noteEvent.time, noteEvent);
 		if (!existingNote || noteEvent.note > existingNote.note) {
 		}
 	});
@@ -161,14 +161,6 @@ export const midiToKeys = async (midiFile, options = {}) => {
 		`  Step 2 (dedupe): ${trackMelodyNotes.length} -> ${processedNotes.length} notes`,
 	);
 
-	// Calculate delta times
-	let prevTime = 0;
-	processedNotes.forEach((note) => {
-		note.deltaTime = note.time - prevTime;
-		prevTime = note.time;
-		note.note = note.note + 12;
-	});
-
 	console.log();
 	// Convert to key sequence
 	console.log("=".repeat(60));
@@ -178,10 +170,20 @@ export const midiToKeys = async (midiFile, options = {}) => {
 	const playable = [];
 	const outOfRange = [];
 
+	let prevTime = 0;
 	processedNotes.forEach((processedNote) => {
-		const { time, deltaTime, note, channel, trackIndex } = processedNote;
+		// Calculate delta times
+		processedNote.deltaTime = processedNote.time - prevTime;
+		prevTime = processedNote.time;
+
+		// Transpose
+		processedNote.note = processedNote + transposition * 12;
+
+		const { time, note, channel, trackIndex } = processedNote;
+
 		const noteName = getNoteName(note);
 		processedNote.noteName = noteName;
+
 		const keyPress = noteToKeyPress(note);
 
 		if (keyPress) {
@@ -214,11 +216,15 @@ export const midiToKeys = async (midiFile, options = {}) => {
 	);
 	if (playable.length > 0) {
 		console.log(`Playable notes: `);
-		const uniquePlayable = [...new Map(playable.map(item => [item.note, item])).values()];
+		const uniquePlayable = [
+			...new Map(playable.map((item) => [item.note, item])).values(),
+		];
 		uniquePlayable.sort((a, b) => a.note - b.note);
 		const lowest = uniquePlayable[0];
 		const highest = uniquePlayable[uniquePlayable.length - 1];
-		console.log(`${lowest.noteName} (MIDI ${lowest.note}) - ${highest.noteName} (MIDI ${highest.note})`)
+		console.log(
+			`${lowest.noteName} (MIDI ${lowest.note}) - ${highest.noteName} (MIDI ${highest.note})`,
+		);
 	}
 
 	if (outOfRange.length > 0) {

@@ -17,11 +17,14 @@ const main = async () => {
 	const dryRun = args.includes("-n");
 	const showTiming = args.includes("--timing");
 	let trackIndex = null;
+	let transposition = null;
 
 	// Parse arguments
 	args.slice(1).forEach((arg) => {
 		if (/^\d+$/.test(arg)) {
 			trackIndex = parseInt(arg, 10);
+		} else if (arg.startsWith("--trans")) {
+			transposition = Number(arg.split("=")[1]);
 		}
 	});
 
@@ -29,6 +32,7 @@ const main = async () => {
 		const notes = await midiToKeys(midiFile, {
 			trackIndex,
 			showTiming,
+			transposition,
 		});
 
 		if (!dryRun) {
